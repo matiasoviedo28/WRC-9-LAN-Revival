@@ -1,64 +1,68 @@
-# WRC 9 en LAN sin servidores oficiales
+# WRC 9 over LAN without official servers
 
-Cómo jugar multijugador en red local a *WRC 9 FIA World Rally Championship* (PC, Steam), ahora que el backend online del juego no funciona.
+**English** | [Español](README.es.md)
 
-| Plataforma | Estado |
+How to play *WRC 9 FIA World Rally Championship* (PC, Steam) multiplayer on a local network, now that the game's online backend no longer works.
+
+| Platform | Status |
 | --- | --- |
-| Ubuntu + Steam (Snap) + Proton | **Funciona.** Probado entre dos PC por Wi-Fi: la sala se ve y se puede jugar. |
-| Windows | **Sin probar.** Plan posible más abajo; `wrc9-ktos.py` no funciona allí sin adaptarlo. |
+| Ubuntu + Steam (Snap) + Proton | **Working.** Tested between two PCs over Wi-Fi: the room is visible and you can play. |
+| Windows | **Untested.** See the possible plan below; `wrc9-ktos.py` won't run there without porting it. |
 
-Versión analizada: Steam build `6335125`. No modifica ningún archivo del juego.
+Analyzed version: Steam build `6335125`. No game files are modified.
 
-## Inicio rápido (Ubuntu)
+## Quick start (Ubuntu)
 
-Ambas PC deben estar en la misma red, tener el juego con el mismo build y usar `wrc9-ktos.py`.
+Both PCs must be on the same network, have the same game build and use `wrc9-ktos.py`.
 
-1. Con WRC 9 cerrado, en **ambas** PC:
+1. With WRC 9 closed, on **both** PCs:
    ```bash
    sudo python3 wrc9-ktos.py
    ```
-   Esperar a `KtOS local listo` y dejar la terminal abierta.
-2. Abrir o ajustar el firewall. Para probar, en ambas:
+   Wait for `KtOS local listo` ("local KtOS ready") and leave the terminal open.
+2. Open or adjust the firewall. For a quick test, on both:
    ```bash
    sudo ufw disable
    ```
-   Al terminar: `sudo ufw enable`. Ver [Firewall](#firewall) para una regla permanente.
-3. Abrir WRC 9. La terminal debe mostrar `Modo LAN forzado en memoria`.
-4. **Host:** Multijugador online → crear sala.
-5. **Cliente:** Multijugador online → buscar partidas.
-6. Al terminar, cerrar el juego y apretar **Ctrl+C** en la terminal.
+   When you finish: `sudo ufw enable`. See [Firewall](#firewall) for a permanent rule.
+3. Start WRC 9. The terminal must show `Modo LAN forzado en memoria` ("LAN mode forced in memory").
+4. **Host:** Online multiplayer → create a room.
+5. **Client:** Online multiplayer → search for games.
+6. When you finish, close the game and press **Ctrl+C** in the terminal.
 
-## El problema
+The script's messages are in Spanish.
 
-El multijugador mostraba **"debes estar conectado"**, incluso con internet. El log del juego (`WRC9.log`) decía:
+## The problem
+
+Multiplayer showed **"you must be connected"**, even with a working internet connection. The game log (`WRC9.log`) said:
 
 ```text
 profilebase.cpp(313) : warning : Can't login to KtOS. Status 502 Msg
 ```
 
-KtOS es el backend de Kylotonn. En `ktos.kylotonn.com` nginx sigue respondiendo, pero las rutas de la API devuelven `502 Bad Gateway`, y son las que el juego necesita para iniciar sesión.
+KtOS is Kylotonn's backend. On `ktos.kylotonn.com`, nginx still answers, but the API routes the game needs to sign in return `502 Bad Gateway`.
 
-## La solución
+## The solution
 
-Hacen falta tres cosas. `wrc9-ktos.py` resuelve las dos primeras.
+Three things are needed. `wrc9-ktos.py` handles the first two.
 
-| Pieza | Qué hace | Por qué hace falta |
+| Piece | What it does | Why it's needed |
 | --- | --- | --- |
-| Login falso | Responde en local a las peticiones que iban a KtOS | Sin sesión, el juego dice "debes estar conectado" |
-| Modo LAN forzado | Pone `WRC.UseLanNetwork` en `true` en la memoria del juego | Sin esto, el juego usa `/multiplayer/connect`, que no existe |
-| Firewall abierto | Deja pasar UDP entre las dos PC | Sin esto, la búsqueda dice "no se encontraron partidas" |
+| Fake login | Answers locally the requests that went to KtOS | Without a session, the game says "you must be connected" |
+| Forced LAN mode | Sets `WRC.UseLanNetwork` to `true` in the game's memory | Without it, the game calls `/multiplayer/connect`, which doesn't exist |
+| Open firewall | Lets UDP through between the two PCs | Without it, the search reports that no games were found |
 
-### 1. Login falso
+### 1. Fake login
 
-El script agrega esta línea a `/etc/hosts` mientras corre, y la quita al cerrarse:
+While it runs, the script adds this line to `/etc/hosts`, and removes it on exit:
 
 ```text
 127.0.0.1 ktos.kylotonn.com # wrc9-ktos
 ```
 
-Luego atiende HTTP (80) y HTTPS (443), solo en `127.0.0.1`. El juego acepta el certificado autofirmado porque sus peticiones activan `WINHTTP_OPTION_SECURITY_FLAGS` con `0x3100`.
+It then serves HTTP (80) and HTTPS (443), on `127.0.0.1` only. The game accepts the self-signed certificate because its requests set `WINHTTP_OPTION_SECURITY_FLAGS` to `0x3100`.
 
-Respuesta a `POST /wrc9/prod/users/login`:
+Response to `POST /wrc9/prod/users/login`:
 
 ```json
 {
@@ -76,87 +80,87 @@ Respuesta a `POST /wrc9/prod/users/login`:
 }
 ```
 
-Cualquier otra ruta recibe `status: 0` y `data: {}`. Eso alcanzó para noticias, desafíos y clubes.
+Any other route gets `status: 0` and `data: {}`. That was enough for news, challenges and clubs requests.
 
-### 2. Modo LAN oculto
+### 2. Hidden LAN mode
 
-`WRC9.exe` contiene una capa de red LAN sobre RakNet. Parece pensada para eventos de esports, porque `Common/Settings/LanSettings.cfg` trae los nombres `eSportPlayer` y `eSportCopilot`.
+`WRC9.exe` contains a LAN network layer built on RakNet. It seems intended for esports events, since `Common/Settings/LanSettings.cfg` ships with the names `eSportPlayer` and `eSportCopilot`.
 
-El juego elige la capa de red en `0x140fb6ec0`:
+The game picks its network layer at `0x140fb6ec0`:
 
 ```text
-si WRC.UseLanNetwork               -> capa LAN (0x140fc4980)
-si no, si UseKtOS y UseKtOSMultiplayer -> capa KtOS (0x140fb2120)
-si no                              -> capa Steam (0x140fc6090)
+if WRC.UseLanNetwork                  -> LAN layer (0x140fc4980)
+else if UseKtOS and UseKtOSMultiplayer -> KtOS layer (0x140fb2120)
+else                                  -> Steam layer (0x140fc6090)
 ```
 
-Esa opción no se puede activar desde `UserSettings.cfg`: el juego la ignora. Por eso el script la escribe en memoria mientras el juego arranca. Antes de escribir, comprueba que el texto `UseLanNetwork` esté en la dirección esperada; si no coincide, no toca nada.
+This option can't be enabled from `UserSettings.cfg`: the game ignores it. So the script writes it to memory while the game starts. Before writing, it checks that the text `UseLanNetwork` is at the expected address; if it doesn't match, it touches nothing.
 
-| Dato | RVA (imagen base `0x140000000`) |
+| Item | RVA (image base `0x140000000`) |
 | --- | --- |
-| Nombre `UseLanNetwork` | `0x1387f00` |
-| Valor del flag | `0x1a231f0` |
+| `UseLanNetwork` name | `0x1387f00` |
+| Flag value | `0x1a231f0` |
 
-### 3. Descubrimiento de salas
+### 3. Room discovery
 
-- El host escucha en UDP **60000**.
-- El cliente envía un ping de RakNet a `255.255.255.255`, barriendo puertos desde el 60000.
-- El host contesta un `ID_UNCONNECTED_PONG` con datos como `WRC9Kylo;1 2;2 1;...`.
+- The host listens on UDP **60000**.
+- The client sends a RakNet ping to `255.255.255.255`, sweeping ports from 60000 upwards.
+- The host replies with an `ID_UNCONNECTED_PONG` carrying data such as `WRC9Kylo;1 2;2 1;...`.
 
-El ping normal (ICMP) funcionaba, pero el firewall del host bloqueaba este UDP. Para comprobarlo, enviamos el mismo paquete desde Python: no hubo respuesta con `ufw` activo y sí la hubo al desactivarlo.
+Regular ping (ICMP) worked, but the host's firewall was blocking this UDP traffic. To confirm it, we sent the same packet from Python: no reply with `ufw` active, and a reply once it was disabled.
 
-## Cómo se llegó a esto
+## How we got here
 
-1. No había parche ni servidor comunitario conocido, así que se analizó el juego.
-2. En el ejecutable aparecieron RakNet, `UseLanNetwork` y `LanSettings.cfg`.
-3. Se añadieron `WRC.UseLanNetwork = true;` y `Engine.UseKtOS = false;` a `UserSettings.cfg`. **No funcionó.**
-4. El log mostró el 502 de KtOS, confirmado al consultar la API.
-5. Se reconstruyó la respuesta del login a partir del código que la procesa, y se creó el servidor local. El login pasó, pero seguía el error.
-6. El registro del servidor mostró `/multiplayer/connect`, prueba de que la capa LAN no estaba activa.
-7. Se forzó el flag en memoria. El error desapareció y se pudo crear la sala.
-8. La búsqueda no encontraba nada: era `ufw` en la PC del host.
+1. There was no known patch or community server, so we analyzed the game.
+2. The executable revealed RakNet, `UseLanNetwork` and `LanSettings.cfg`.
+3. We added `WRC.UseLanNetwork = true;` and `Engine.UseKtOS = false;` to `UserSettings.cfg`. **It didn't work.**
+4. The log showed the KtOS 502, confirmed by querying the API.
+5. We rebuilt the login response from the code that parses it and wrote the local server. Login passed, but the error remained.
+6. The server log showed `/multiplayer/connect`, proof that the LAN layer wasn't active.
+7. We forced the flag in memory. The error went away and we could create a room.
+8. Search found nothing: the cause was `ufw` on the host PC.
 
 ## Firewall
 
-Regla permanente, en lugar de desactivar `ufw`. Ajustar la subred a la red propia:
+A permanent rule, instead of disabling `ufw`. Adjust the subnet to your own network:
 
 ```bash
 sudo ufw allow from 192.168.10.0/24 proto udp
 ```
 
-Esta regla no se usó en la prueba: allí se desactivó `ufw` en el host. Ante cualquier duda, abrirlo también en el cliente.
+This rule wasn't used in our test: there, `ufw` was disabled on the host. If in doubt, open it on the client too.
 
-## Problemas frecuentes
+## Troubleshooting
 
-| Síntoma | Causa probable | Qué hacer |
+| Symptom | Likely cause | What to do |
 | --- | --- | --- |
-| "Debes estar conectado" | Servidor apagado, o abierto después del juego | Cerrar el juego, abrir el script y luego el juego |
-| Sin `Modo LAN forzado en memoria` | El script no detectó el juego | Confirmar que corra con `sudo` |
-| `no coincide con este build` | El juego se actualizó | Recalcular los offsets |
-| "No se encontraron partidas" | Firewall del host | Revisar `ufw` y ver el puerto con `ss -uanp \| grep :60000` |
-| Sigue sin aparecer | Aislamiento de Wi-Fi o Docker | Probar `ping` entre PC, desactivar "aislamiento de AP" o parar Docker |
-| Internet raro para ese dominio | Quedó la línea en `/etc/hosts` | Abrir y cerrar el script, o borrar la línea marcada `# wrc9-ktos` |
+| "You must be connected" | Server not running, or started after the game | Close the game, start the script, then the game |
+| No `Modo LAN forzado en memoria` | The script didn't detect the game | Make sure it runs with `sudo` |
+| `no coincide con este build` | The game was updated | Recalculate the offsets |
+| No games found | Host firewall | Check `ufw` and the port with `ss -uanp \| grep :60000` |
+| Room still not showing | Wi-Fi isolation or Docker | Try `ping` between PCs, disable "AP isolation" or stop Docker |
+| That domain still points to your PC | The line stayed in `/etc/hosts` | Start and close the script, or delete the line marked `# wrc9-ktos` |
 
-## Windows: plan posible (sin probar)
+## Windows: possible plan (untested)
 
-Hay que portar tres partes de `wrc9-ktos.py`. Todos los comandos van en PowerShell como administrador.
+Three parts of `wrc9-ktos.py` need porting. Run all commands in PowerShell as administrator.
 
-**1. Hosts.** Cambiar la ruta a:
+**1. Hosts.** Change the path to:
 
 ```text
 C:\Windows\System32\drivers\etc\hosts
 ```
 
-Algunos antivirus bloquean cambios en este archivo.
+Some antivirus software blocks changes to this file.
 
-**2. Certificado.** El script llama a `openssl`, que Windows no trae. Se puede instalar, o generar `c.pem` y `k.pem` en Linux y copiarlos.
+**2. Certificate.** The script calls `openssl`, which Windows doesn't ship. Install it, or generate `c.pem` and `k.pem` on Linux and copy them over.
 
-**3. Memoria.** Windows no tiene `/proc/<pid>/mem`. Hay que usar la API de Windows, por ejemplo con `ctypes`:
+**3. Memory.** Windows has no `/proc/<pid>/mem`. Use the Windows API instead, for example through `ctypes`:
 
-- Reemplazar `os.geteuid()` por una comprobación de administrador.
-- Buscar el proceso `WRC9.exe` y **la base real del módulo**. En Windows puede no ser `0x140000000`, así que hay que leerla con `CreateToolhelp32Snapshot`.
-- Con `OpenProcess`, usar `ReadProcessMemory` para validar `UseLanNetwork` en `base + 0x1387f00`.
-- Escribir `1` con `WriteProcessMemory` en `base + 0x1a231f0`, repitiendo muy seguido desde el arranque, porque el juego elige la capa de red temprano.
+- Replace `os.geteuid()` with an administrator check.
+- Find the `WRC9.exe` process and **the module's real base**. On Windows it may not be `0x140000000`, so read it with `CreateToolhelp32Snapshot`.
+- With `OpenProcess`, use `ReadProcessMemory` to validate `UseLanNetwork` at `base + 0x1387f00`.
+- Write `1` with `WriteProcessMemory` at `base + 0x1a231f0`, repeating very often from startup, because the game picks its network layer early.
 
 **Firewall:**
 
@@ -164,21 +168,21 @@ Algunos antivirus bloquean cambios en este archivo.
 New-NetFirewallRule -DisplayName "WRC9 LAN" -Direction Inbound -Protocol UDP -LocalPort 60000-60031 -Action Allow
 ```
 
-**Riesgos:** otros procesos pueden ocupar los puertos 80 o 443, y un antivirus puede marcar la escritura en memoria. Un Windows y un Ubuntu deberían poder jugar juntos, pero no se probó.
+**Risks:** other processes may be using ports 80 or 443, and antivirus software may flag the memory write. A Windows PC and an Ubuntu PC should be able to play together, but that hasn't been tested.
 
-## Límites y avisos
+## Limits and notices
 
-- Solo sirve en la misma red local; no reemplaza el online para clubes, rankings ni desafíos.
-- Ambos deberían tener el mismo build del juego.
-- El script corre como root, modifica `/etc/hosts` y escribe en la memoria de `WRC9.exe`. Conviene leerlo antes de usarlo.
-- Si se comparte, compartir solo este documento y el script, nunca archivos del juego.
-- Las peticiones de login incluyen un ticket de Steam. El script solo registra su tamaño, no su contenido.
-- La licencia puede restringir este tipo de análisis, y las reglas sobre ingeniería inversa varían según el país. Esto se hizo con copias compradas, para uso privado y sin tocar el DRM.
+- It only works on the same local network. It doesn't replace online play for clubs, leaderboards or challenges.
+- Both players should have the same game build.
+- The script runs as root, edits `/etc/hosts` and writes to the memory of `WRC9.exe`. Read it before using it.
+- If you share this, share only this document and the script, never game files.
+- Login requests include a Steam ticket. The script logs only its size, not its contents.
+- The license may restrict this kind of analysis, and reverse engineering rules vary by country. This was done with purchased copies, for private use and without touching the DRM.
 
-## Archivos
+## Files
 
-| Archivo | Uso |
+| File | Purpose |
 | --- | --- |
-| `wrc9-ktos.py` | La solución: login local y modo LAN forzado |
-| `wrc9-ktos.log` | Registro de peticiones de la última sesión |
-| `wrc9-lan.sh` | Obsoleto: fue el primer intento vía `UserSettings.cfg` |
+| `wrc9-ktos.py` | The solution: local login and forced LAN mode |
+| `wrc9-lan.sh` | Obsolete: the first attempt through `UserSettings.cfg` |
+| `README.es.md` | Spanish version of this document |
