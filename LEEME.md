@@ -80,6 +80,7 @@ Tailscale no sirve para esto, porque no transmite el broadcast que usa el juego 
 
 Quiero saber de vos **tanto si funciona como si no**. Cada reporte ayuda, sobre todo desde Windows, que todavía no está probado. Si algo falla, le busco una solución.
 
+- Comentá en el [post de Reddit](https://www.reddit.com/r/WRCTheGame/comments/1xo7fvn/i_got_wrc_9_multiplayer_working_again_after_the/), o
 - Abrí un [issue en GitHub](https://github.com/matiasoviedo28/WRC-9-LAN-Revival/issues), o
 - Escribime a **[matiasalbertooviedogonzalez@gmail.com](mailto:matiasalbertooviedogonzalez@gmail.com)**.
 
