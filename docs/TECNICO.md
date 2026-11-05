@@ -1,32 +1,17 @@
 # WRC 9 en LAN sin servidores oficiales
 
+[English](TECHNICAL.md) | **Español** · [Volver al README](../LEEME.md)
+
 Cómo jugar multijugador en red local a *WRC 9 FIA World Rally Championship* (PC, Steam), ahora que el backend online del juego no funciona.
 
 | Plataforma | Estado |
 | --- | --- |
 | Ubuntu + Steam (Snap) + Proton | **Funciona.** Probado entre dos PC por Wi-Fi: la sala se ve y se puede jugar. |
-| Windows | **Sin probar.** Plan posible más abajo; `wrc9-ktos.py` no funciona allí sin adaptarlo. |
+| Windows | **Sin probar.** Port en `windows/`; ver [Versión para Windows](#versión-para-windows-sin-probar). |
 
 Versión analizada: Steam build `6335125`. No modifica ningún archivo del juego.
 
-## Inicio rápido (Ubuntu)
-
-Ambas PC deben estar en la misma red, tener el juego con el mismo build y usar `wrc9-ktos.py`.
-
-1. Con WRC 9 cerrado, en **ambas** PC:
-   ```bash
-   sudo python3 wrc9-ktos.py
-   ```
-   Esperar a `KtOS local listo` y dejar la terminal abierta.
-2. Abrir o ajustar el firewall. Para probar, en ambas:
-   ```bash
-   sudo ufw disable
-   ```
-   Al terminar: `sudo ufw enable`. Ver [Firewall](#firewall) para una regla permanente.
-3. Abrir WRC 9. La terminal debe mostrar `Modo LAN forzado en memoria`.
-4. **Host:** Multijugador online → crear sala.
-5. **Cliente:** Multijugador online → buscar partidas.
-6. Al terminar, cerrar el juego y apretar **Ctrl+C** en la terminal.
+Para instalarlo, ver el [LEEME](../LEEME.md).
 
 ## El problema
 
@@ -137,34 +122,22 @@ Esta regla no se usó en la prueba: allí se desactivó `ufw` en el host. Ante c
 | Sigue sin aparecer | Aislamiento de Wi-Fi o Docker | Probar `ping` entre PC, desactivar "aislamiento de AP" o parar Docker |
 | Internet raro para ese dominio | Quedó la línea en `/etc/hosts` | Abrir y cerrar el script, o borrar la línea marcada `# wrc9-ktos` |
 
-## Windows: plan posible (sin probar)
+## Versión para Windows (sin probar)
 
-Hay que portar tres partes de `wrc9-ktos.py`. Todos los comandos van en PowerShell como administrador.
+`windows/wrc9-ktos.py` es el port del script de Ubuntu. `windows/INICIAR.bat` pide permisos de administrador y lo ejecuta con Python.
 
-**1. Hosts.** Cambiar la ruta a:
+| Linux | Windows |
+| --- | --- |
+| `/etc/hosts` | `C:\Windows\System32\drivers\etc\hosts`, seguido de `ipconfig /flushdns` |
+| Certificado generado con `openssl` | `ktos.pem` incluido, autofirmado para `ktos.kylotonn.com`. El juego no lo valida y no se instala en ningún almacén de certificados. |
+| `/proc/<pid>/mem` | `OpenProcess`, `ReadProcessMemory` y `WriteProcessMemory` |
+| Base fija `0x140000000` | Base real del módulo con `CreateToolhelp32Snapshot`, y esa base como respaldo |
+| Ctrl+C limpia | Ctrl+C o cerrar la ventana limpian (`SetConsoleCtrlHandler`) |
+| Regla de `ufw` desde `iniciar.sh` | Agrega una vez la regla de firewall `WRC9 LAN` (UDP 60000-60031) |
 
-```text
-C:\Windows\System32\drivers\etc\hosts
-```
+Antes de escribir en memoria sigue validando `UseLanNetwork`. Si el puerto 80 está ocupado, continúa solo con HTTPS.
 
-Algunos antivirus bloquean cambios en este archivo.
-
-**2. Certificado.** El script llama a `openssl`, que Windows no trae. Se puede instalar, o generar `c.pem` y `k.pem` en Linux y copiarlos.
-
-**3. Memoria.** Windows no tiene `/proc/<pid>/mem`. Hay que usar la API de Windows, por ejemplo con `ctypes`:
-
-- Reemplazar `os.geteuid()` por una comprobación de administrador.
-- Buscar el proceso `WRC9.exe` y **la base real del módulo**. En Windows puede no ser `0x140000000`, así que hay que leerla con `CreateToolhelp32Snapshot`.
-- Con `OpenProcess`, usar `ReadProcessMemory` para validar `UseLanNetwork` en `base + 0x1387f00`.
-- Escribir `1` con `WriteProcessMemory` en `base + 0x1a231f0`, repitiendo muy seguido desde el arranque, porque el juego elige la capa de red temprano.
-
-**Firewall:**
-
-```powershell
-New-NetFirewallRule -DisplayName "WRC9 LAN" -Direction Inbound -Protocol UDP -LocalPort 60000-60031 -Action Allow
-```
-
-**Riesgos:** otros procesos pueden ocupar los puertos 80 o 443, y un antivirus puede marcar la escritura en memoria. Un Windows y un Ubuntu deberían poder jugar juntos, pero no se probó.
+Solo se probó la parte HTTP/HTTPS, en Linux. Las llamadas a la API de Windows nunca se ejecutaron en Windows, y un antivirus puede marcar la escritura en memoria o el cambio en `hosts`.
 
 ## Límites y avisos
 
@@ -179,6 +152,9 @@ New-NetFirewallRule -DisplayName "WRC9 LAN" -Direction Inbound -Protocol UDP -Lo
 
 | Archivo | Uso |
 | --- | --- |
-| `wrc9-ktos.py` | La solución: login local y modo LAN forzado |
-| `wrc9-ktos.log` | Registro de peticiones de la última sesión |
-| `wrc9-lan.sh` | Obsoleto: fue el primer intento vía `UserSettings.cfg` |
+| `ubuntu/iniciar.sh` | Lanzador de Ubuntu: revisa dependencias, abre UDP 60000-60031 en `ufw` y ejecuta el script |
+| `ubuntu/wrc9-ktos.py` | Solución para Ubuntu: login local y modo LAN forzado (probada) |
+| `windows/INICIAR.bat` | Lanzador de Windows: pide permisos de administrador y ejecuta el script |
+| `windows/wrc9-ktos.py` | Port para Windows (sin probar) |
+| `windows/ktos.pem` | Certificado autofirmado del servidor local |
+| `docs/TECHNICAL.md` | Versión en inglés de este documento |
