@@ -157,4 +157,5 @@ Only the HTTP/HTTPS part was tested, on Linux. The Windows API calls have never 
 | `windows/INICIAR.bat` | Windows launcher: asks for admin rights and runs the script |
 | `windows/wrc9-ktos.py` | Windows port (untested) |
 | `windows/ktos.pem` | Self-signed certificate for the local server |
+| `.github/workflows/build-windows.yml` | Builds `WRC9-LAN-Revival.exe` with PyInstaller (`--onefile --uac-admin`, certificate bundled). Run it from the Actions tab, or push a `v*` tag to publish it as a Release. |
 | `docs/TECNICO.md` | Spanish version of this document |

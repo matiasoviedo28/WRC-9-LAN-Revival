@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Servidor KtOS local para WRC 9 en Windows: reemplaza el login caido de ktos.kylotonn.com
-# y fuerza el modo LAN oculto. Se abre con INICIAR.bat (como administrador).
+# y fuerza el modo LAN oculto. Se abre con INICIAR.bat o como WRC9-LAN-Revival.exe.
 import ctypes
 import ctypes.wintypes as wt
 import json
@@ -16,9 +16,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HOST = "ktos.kylotonn.com"
 MARK = "# wrc9-ktos"
 HOSTS = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), r"System32\drivers\etc\hosts")
+FROZEN = getattr(sys, "frozen", False)  # True cuando corre como .exe de PyInstaller
 HERE = os.path.dirname(os.path.abspath(__file__))
-CERT = os.path.join(HERE, "ktos.pem")
-LOG = os.path.join(HERE, "wrc9-ktos.log")
+APP_DIR = os.path.dirname(sys.executable) if FROZEN else HERE
+CERT = os.path.join(getattr(sys, "_MEIPASS", HERE), "ktos.pem")
+LOG = os.path.join(APP_DIR, "wrc9-ktos.log")
 FIREWALL_RULE = "WRC9 LAN"
 USER_ID = uuid.uuid4().hex
 log_lock = threading.Lock()
@@ -228,7 +230,7 @@ def main():
     if os.name != "nt":
         sys.exit("Este script es para Windows. En Ubuntu usa la carpeta 'ubuntu'.")
     if not ctypes.windll.shell32.IsUserAnAdmin():
-        sys.exit("Abrilo con INICIAR.bat (necesita permisos de administrador).")
+        sys.exit("Necesita permisos de administrador: abrilo de nuevo y elegi 'Si'.")
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(CERT)
     try:
@@ -261,4 +263,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        if FROZEN and e.code not in (None, 0):
+            print(e.code)
+            input("Enter para cerrar...")
+        raise

@@ -19,7 +19,8 @@ Play *WRC 9 FIA World Rally Championship* multiplayer with your friends again. T
 
 ## 1. Download
 
-Press the green **Code** button at the top of this page, then **Download ZIP**. Extract it anywhere, for example on your Desktop.
+- **Windows:** download **`WRC9-LAN-Revival.exe`** from [Releases](https://github.com/matiasoviedo28/WRC-9-LAN-Revival/releases/latest). Nothing else is needed.
+- **Ubuntu:** press the green **Code** button at the top of this page, then **Download ZIP**. Extract it anywhere, for example on your Desktop.
 
 ## 2. Start the tool
 
@@ -38,11 +39,19 @@ The tool's messages are in Spanish. Two of them matter: `KtOS local listo` means
 
 ### Windows
 
-1. **First time only:** install Python from [python.org](https://www.python.org/downloads/). In the installer, tick **"Add python.exe to PATH"**.
-2. Close WRC 9.
-3. Open the `windows` folder and double-click **`INICIAR.bat`**.
-4. Choose **Yes** when Windows asks for permission. If it says "Windows protected your PC", choose **More info** and then **Run anyway**.
-5. Wait for `KtOS local listo`. **Leave the window open** while you play.
+1. Close WRC 9.
+2. Double-click **`WRC9-LAN-Revival.exe`**.
+3. Choose **Yes** when Windows asks for permission. If it says "Windows protected your PC", choose **More info** and then **Run anyway**.
+4. Wait for `KtOS local listo`. **Leave the window open** while you play.
+
+<details>
+<summary>Alternative without the .exe (needs Python)</summary>
+
+1. Install Python from [python.org](https://www.python.org/downloads/). In the installer, tick **"Add python.exe to PATH"**.
+2. Download the ZIP (step 1, Ubuntu), open the `windows` folder and double-click **`INICIAR.bat`**.
+3. Continue from step 3 above.
+
+</details>
 
 ## 3. Play
 
@@ -61,8 +70,8 @@ Anyone can create the room. Nobody needs to stay online for the others to play.
 | `Modo LAN forzado en memoria` never appears | Make sure the tool started with administrator rights (password or "Yes"). |
 | `no coincide con este build` | Your game version differs from the supported one. Update WRC 9 in Steam and report it. |
 | "No games found" | Usually a firewall. On Ubuntu try `sudo ufw disable` (and `sudo ufw enable` afterwards). Also check that both PCs are on the same Wi-Fi. |
-| Windows: "Python is missing" | Install Python (step 1) and open `INICIAR.bat` again. |
-| Antivirus warning | The tool edits the `hosts` file and the game's memory. You can read exactly what it does in `windows/wrc9-ktos.py`. |
+| Windows: "Python is missing" | Only with `INICIAR.bat`: install Python, or use the `.exe` instead. |
+| Antivirus warning | The tool edits the `hosts` file and the game's memory, so some antivirus software flags it. You can read exactly what it does in `windows/wrc9-ktos.py`; GitHub builds the `.exe` from that file automatically. |
 
 If something else happens, see [Feedback and contact](#feedback-and-contact).
 
